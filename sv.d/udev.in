@@ -8,7 +8,7 @@ case "$1" in
         stat_busy "Starting udev daemon"
         udevd --daemon || stat_die udev
         # Note: This is only needed for initialization, udev will
-        #       be controlled by runit on stage 2.
+        #       be controlled by nitro after SYS/setup completes.
         add_daemon udev
         stat_done udev
         ;;

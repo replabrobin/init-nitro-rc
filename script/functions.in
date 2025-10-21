@@ -5,6 +5,8 @@
 # sanitize PATH (will be overridden later when /etc/profile is sourced but is useful for udev)
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
+[ ! -d "@RCRUNDIR@" ] && mkdir -p @RCRUNDIR@
+
 . /etc/profile.d/locale.sh
 
 # width:

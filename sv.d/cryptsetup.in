@@ -30,7 +30,7 @@ do_unlock_device() {
 				"key-slot"*) opts+="-S ${i##*=}" ;;
 				*)
 					printhl "The option is not currently supported at the moment."
-					printhl "Please add an issue to https://github.com/artix-linux/runit-rc"
+					printhl "Please add an issue to https://github.com/artix-linux/nitro"
 					continue
 				;;
 			esac
