@@ -1,0 +1,258 @@
+#!/bin/bash
+# rc functions
+#
+
+# sanitize PATH (will be overridden later when /etc/profile is sourced but is useful for udev)
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+. /etc/profile.d/locale.sh
+
+# width:
+calc_columns () {
+    STAT_COL=80
+    if [[ ! -t 1 ]]; then
+        USECOLOR=""
+    elif [[ -t 0 ]]; then
+        # stty will fail when stdin isn't a terminal
+        STAT_COL=$(stty size)
+        # stty gives "rows cols"; strip the rows number, we just want columns
+        STAT_COL=${STAT_COL##* }
+    elif tput cols &>/dev/null; then
+        # is /usr/share/terminfo already mounted, and TERM recognized?
+        STAT_COL=$(tput cols)
+    fi
+    if (( STAT_COL == 0 )); then
+        # if output was 0 (serial console), set default width to 80
+        STAT_COL=80
+        USECOLOR=""
+    fi
+
+    # we use 13 characters for our own stuff
+    STAT_COL=$(( STAT_COL - 13 ))
+
+    if [[ -t 1 ]]; then
+        SAVE_POSITION="\e[s"
+        RESTORE_POSITION="\e[u"
+        DEL_TEXT="\e[$(( STAT_COL + 4 ))G"
+    else
+        SAVE_POSITION=""
+        RESTORE_POSITION=""
+        DEL_TEXT=""
+    fi
+}
+
+deltext() {
+    printf "${DEL_TEXT}"
+}
+
+printhl() {
+    printf "${C_OTHER}${PREFIX_HL} ${C_H1}${1}${C_CLEAR} \n"
+}
+
+printsep() {
+    printf "\n${C_SEPARATOR}   ------------------------------\n"
+}
+
+stat_busy() {
+    printf "${C_OTHER}${PREFIX_REG} ${C_MAIN}${1}${C_CLEAR} "
+    printf "${SAVE_POSITION}"
+    deltext
+    printf "   ${C_OTHER}[${C_BUSY}busy${C_OTHER}]${C_CLEAR} "
+}
+
+ck_daemon() {
+    [[ ! -f @RCRUNDIR@/started/$1 ]]
+}
+
+ck_failed() {
+    [[ ! -f @RCRUNDIR@/failed/$1 ]]
+}
+
+add_daemon() {
+    [[ -d @RCRUNDIR@/started ]] || mkdir -p @RCRUNDIR@/started
+    >| @RCRUNDIR@/started/"$1"
+}
+
+rm_daemon() {
+    rm -f @RCRUNDIR@/started/"$1"
+}
+
+add_failed() {
+    [[ -d @RCRUNDIR@/failed ]] || mkdir -p @RCRUNDIR@/failed
+    >| @RCRUNDIR@/failed/"$1"
+}
+
+rm_failed() {
+    rm -f @RCRUNDIR@/failed/"$1"
+}
+
+ck_status() {
+    if ! ck_daemon "$1"; then
+        stat_started
+    else
+        if ! ck_failed "$1"; then
+            stat_failed
+        else
+            stat_stopped
+        fi
+    fi
+}
+
+stat_done() {
+    if ! ck_failed "$1"; then
+        rm_failed "$1"
+    fi
+    deltext
+    printf "   ${C_OTHER}[${C_DONE}done${C_OTHER}]${C_CLEAR} \n"
+}
+
+stat_fail() {
+    deltext
+    printf "   ${C_OTHER}[${C_FAIL}fail${C_OTHER}]${C_CLEAR} \n"
+}
+
+stat_die() {
+    if ck_failed "$1"; then
+        add_failed "$1"
+    fi
+    stat_fail
+    exit ${2:-1}
+}
+
+status() {
+    local quiet
+    case $1 in
+        -q)
+            quiet=1
+            ;;&
+        -v)
+            # NOOP: supported for backwards compat
+            shift
+            ;;
+    esac
+    stat_busy "$1"
+    shift
+    if (( quiet )); then
+        "$@" &>/dev/null
+    else
+        "$@"
+    fi
+    local ret=$?
+    (( ret == 0 )) && stat_done || stat_fail
+    return $ret
+}
+
+#  usage : in_array( $needle, $haystack )
+# return : 0 - found
+#          1 - not found
+in_array() {
+    local needle=$1; shift
+    local item
+    for item; do
+        [[ $item = "${needle}" ]] && return 0
+    done
+    return 1 # Not Found
+}
+
+print_welcome() {
+    # see os-release(5)
+    . /usr/lib/os-release
+
+    echo " "
+    printhl "${PRETTY_NAME}\n"
+    printhl "${C_H2}${HOME_URL}"
+    printsep
+}
+
+print_leave(){
+    # avoid staircase effect
+    stty onlcr
+    echo " "
+    printhl "Initiating shutdown\n"
+    echo " "
+}
+
+run_sysinit(){
+    # Prints distro name and URL
+    print_welcome
+    calc_columns
+
+    for service in ${RC_SYSINIT[@]};do
+        @RCSVDIR@/"${service#*-}" start
+    done
+}
+
+run_shutdown(){
+    print_leave
+
+    for service in ${RC_SHUTDOWN[@]};do
+        @RCSVDIR@/"${service#*-}" stop
+    done
+}
+
+# if [[ $1 == "start" ]]; then
+# 	if [[ $STARTING ]]; then
+# 		echo "A daemon is starting another daemon; this is unlikely to work as intended."
+# 	else
+# 		export STARTING=1
+# 	fi
+# fi
+
+calc_columns
+
+# disable colors on broken terminals
+if [[ -z "$TERM" || "$TERM" = "dumb" ]]; then
+    TERM_COLORS=$(tput colors -T linux 2>/dev/null)
+else
+    TERM_COLORS=$(tput colors 2>/dev/null)
+fi
+if (( $? != 3 )); then
+    case $TERM_COLORS in
+        *[!0-9]*) USECOLOR="";;
+        [0-7])    USECOLOR="";;
+        '')       USECOLOR="";;
+    esac
+fi
+unset TERM_COLORS
+
+# Filesystem functions
+# These can be overridden/reused for customizations like shutdown/loop-fsck.
+NETFS="nfs,nfs4,smbfs,cifs,codafs,ncpfs,shfs,fuse,fuseblk,glusterfs,davfs,fuse.glusterfs"
+
+# set colors
+# set colors
+if [[ $USECOLOR != [nN][oO] ]]; then
+    if tput setaf 0 &>/dev/null; then
+        C_CLEAR=$(tput sgr0)                 # clear text
+        C_MAIN=${C_CLEAR}$(tput bold)        # main text
+        C_OTHER=${C_MAIN}$(tput setaf 4)     # prefix & brackets
+        C_SEPARATOR=${C_MAIN}$(tput setaf 0) # separator
+        C_BUSY=${C_CLEAR}$(tput setaf 6)     # busy
+        C_FAIL=${C_MAIN}$(tput setaf 5)      # failed
+        C_DONE=${C_MAIN}                     # completed
+        C_STOP=${C_MAIN}$(tput setaf 1)      # backgrounded
+        C_START=${C_MAIN}$(tput setaf 2)   # started
+        C_H1=${C_MAIN}                       # highlight text 1
+        C_H2=${C_MAIN}$(tput setaf 6)        # highlight text 2
+    else
+        C_CLEAR="\e[m"          # clear text
+        C_MAIN="\e[;1m"         # main text
+        C_OTHER="\e[1;34m"      # prefix & brackets
+        C_SEPARATOR="\e[1;30m"  # separator
+        C_BUSY="\e[;36m"        # busy
+        C_FAIL="\e[1;35m"       # failed
+        C_DONE=${C_MAIN}        # completed
+        C_STOP="\e[1;31m"       # backgrounded
+        C_START="\e[1;32m"    # started
+        C_H1=${C_MAIN}          # highlight text 1
+        C_H2="\e[1;36m"         # highlight text 2
+    fi
+fi
+
+# prefixes:
+
+PREFIX_REG="::"
+PREFIX_HL=" >"
+
+RC_SYSINIT=$(ls @RCDIR@/sysinit)
+RC_SHUTDOWN=$(ls @RCDIR@/shutdown)

@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# sourcing our current rc.conf requires this to be a bash script
+. @RCLIBDIR@/functions
+
+mount_procfs(){
+  grep -v '^#' /etc/fstab | grep /proc | {
+    read -r spec file vfstype mntopts x
+      if ! mountpoint -q /proc; then
+        if [ "$spec" -a "$file" -a "$vfstype" -a "$mntopts" ]; then
+          mount -t "$vfstype" "$spec" "$file" -o "$mntopts"
+        else
+          mount -t proc proc /proc
+        fi
+      elif [ "$spec" -a "$file" -a "$vfstype" -a "$mntopts" ] && mountpoint -q /proc; then
+        mount -t "$vfstype" "$spec" "$file" -o "remount,$mntopts"
+      fi
+  }
+}
+
+case "$1" in
+    start)
+        stat_busy "Mounting proc filesystem"
+        mount_procfs
+        add_daemon procfs
+        stat_done
+        ;;
+    *)
+        echo "usage: $0 {start}"
+        exit 1
+        ;;
+esac

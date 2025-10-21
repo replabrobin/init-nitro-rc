@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# sourcing our current rc.conf requires this to be a bash script
+. @RCLIBDIR@/functions
+
+case "$1" in
+    start)
+        stat_busy "Mounting cgroups filesystem"
+         /usr/lib/artix/mount-cgroups.sh|| stat_die cgroups
+        add_daemon cgroups
+        stat_done cgroups
+        ;;
+    *)
+        echo "usage: $0 {start}"
+        exit 1
+        ;;
+esac

@@ -1,0 +1,36 @@
+#!/bin/bash
+
+. @RCLIBDIR@/functions
+. @RCDIR@/rc.conf
+
+HARDWARECLOCK=${HARDWARECLOCK:-UTC}
+
+case $HARDWARECLOCK in
+    UTC) HWCLOCK_PARAMS+=" --utc" ;;
+    localtime) HWCLOCK_PARAMS+=" --localtime" ;;
+    *) HWCLOCK_PARAMS="";;
+esac
+
+case "$1" in
+    start)
+        stat_busy "Adjusting hwclock"
+        hwclock --systz $HWCLOCK_PARAMS --noadjfile || stat_die
+        add_daemon hwclock
+        stat_done
+        ;;
+    stop)
+        stat_busy "Adjusting hwclock"
+        hwclock --systohc $HWCLOCK_PARAMS || stat_die
+        rm_daemon hwclock
+        stat_done
+        ;;
+    restart)
+        $0 stop
+        sleep 2
+        $0 start
+        ;;
+    *)
+        echo "usage: $0 {start|stop|restart}"
+        ;;
+esac
+
