@@ -114,6 +114,7 @@ EDIT = sed \
 all: all-rc
 
 all-rc: $(RCBIN) $(RCSVD) $(RCFUNC) $(CONF)
+		$(CC) $(CFLAGS) src/pause.c -o src/pause $(LDFLAGS)
 
 install-rc:
 
