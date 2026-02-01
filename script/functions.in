@@ -16,7 +16,7 @@ calc_columns () {
         USECOLOR=""
     elif [[ -t 0 ]]; then
         # stty will fail when stdin isn't a terminal
-        STAT_COL=$(stty size)
+        STAT_COL=$(stty size 2>/dev/null || echo 80)
         # stty gives "rows cols"; strip the rows number, we just want columns
         STAT_COL=${STAT_COL##* }
     elif tput cols &>/dev/null; then
@@ -168,7 +168,7 @@ print_welcome() {
 
 print_leave(){
     # avoid staircase effect
-    stty onlcr
+    stty onlcr 2>/dev/null || true
     echo " "
     printhl "Initiating shutdown\n"
     echo " "
