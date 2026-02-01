@@ -11,8 +11,12 @@ case "$1" in
         stat_done remount-root
         ;;
     stop)
-        stat_busy "Remounting root filesystem ro"
-        mount -o remount,ro / || stat_die remount-root
+        if findmnt -n -o OPTIONS / | grep -qE "^ro,|,ro,|,ro$"; then
+            stat_busy "Filesystem / already ro"
+        else
+            stat_busy "Remounting root filesystem ro"
+            mount -o remount,ro / || stat_die remount-root
+        fi
         sync
         rm_daemon remount-root
         stat_done remount-root
