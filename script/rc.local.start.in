@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if [ ! -x @SYSCONFDIR@/rc.local ]; then
+    cat > @SYSCONFDIR@/rc.local << EOF
+# @SYSCONFDIR@/rc.local -- rc.local for Artix Linux
+#
+# Enter your custom commands here. It will be executed on stage 2
+# before running services.
+EOF
+    chmod +x @SYSCONFDIR@/rc.local
+fi
+
+# Execute rc.local only once.
+# If artix-branding-base exists, that one will execute rc.local instead.
+[ ! -x @SYSCONFDIR@/local.d/local.start ] && . @SYSCONFDIR@/rc.local

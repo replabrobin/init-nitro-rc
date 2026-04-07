@@ -15,6 +15,8 @@ RCBIN = \
 	script/rc-sv \
 	script/modules-load
 
+RCLOCAL = script/rc.local.start script/rc.shutdown.stop
+
 RCSVD = \
 	sv.d/root \
 	sv.d/binfmt \
@@ -102,7 +104,9 @@ EDIT = sed \
 	-e "s|@RCDIR[@]|$(RCDIR)|g" \
 	-e "s|@RCLIBDIR[@]|$(RCLIBDIR)|g" \
 	-e "s|@RCSVDIR[@]|$(RCSVDIR)|g" \
-	-e "s|@RCRUNDIR[@]|$(RCRUNDIR)|g"
+	-e "s|@RCRUNDIR[@]|$(RCRUNDIR)|g" \
+	-e "s|@SYSCONFDIR[@]|$(SYSCONFDIR)|g" \
+	-e "s|@RCLIBDIR[@]|$(RCLIBDIR)|g"
 
 %: %.in Makefile
 	@echo "GEN $@"
@@ -113,10 +117,12 @@ EDIT = sed \
 
 all: all-rc
 
-all-rc: $(RCBIN) $(RCSVD) $(RCFUNC) $(CONF)
+all-rc: $(RCBIN) $(RCSVD) $(RCFUNC) $(CONF) $(RCLOCAL)
 		$(CC) $(CFLAGS) src/pause.c -o src/pause $(LDFLAGS)
 
 install-rc:
+	install -d $(DESTDIR)$(SYSCONFDIR)/local.d
+	install -m755 $(RCLOCAL) $(DESTDIR)$(SYSCONFDIR)/local.d
 
 	install -d $(DESTDIR)$(RCDIR)
 	install -m755 $(CONF) $(DESTDIR)$(RCDIR)
