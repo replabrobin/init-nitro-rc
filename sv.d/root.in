@@ -44,19 +44,19 @@ umount_fs() {
 }
 
 case "$1" in
-    start)
+    (start)
         stat_busy "Mounting filesystems"
         mount_fs || stat_die root
         add_daemon root
         stat_done root
         ;;
-    stop)
-        stat_busy "Unounting filesystems"
+    (stop)
+        stat_busy "Unmounting filesystems"
         umount_fs || stat_die root
         rm_daemon root
         stat_done root
         ;;
-    *)
+    (*)
         echo "usage: $0 {start|stop}"
         exit 1
         ;;

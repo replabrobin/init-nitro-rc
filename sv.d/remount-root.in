@@ -4,13 +4,13 @@
 . @RCLIBDIR@/functions
 
 case "$1" in
-    start)
+    (start)
         stat_busy "Remounting root filesystem rw"
         mount -o remount,rw / || stat_die remount-root
         add_daemon remount-root
         stat_done remount-root
         ;;
-    stop)
+    (stop)
         if findmnt -n -o OPTIONS / | grep -qE "^ro,|,ro,|,ro$"; then
             stat_busy "Filesystem / already ro"
         else
@@ -21,7 +21,7 @@ case "$1" in
         rm_daemon remount-root
         stat_done remount-root
         ;;
-    *)
+    (*)
         echo "usage: $0 {start|stop}"
         exit 1
         ;;
